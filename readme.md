@@ -19,7 +19,6 @@ az deployment group create -g $RG --template-file .\keyvault.bicep --parameters 
 
 # Set Key Vault Administrator permission for current user (needed to generate CA)
 $currentUserObjectId = (Get-AzADUser -UserPrincipalName (Get-AzContext).Account).Id
-New-Az
 Set-AzKeyVaultAccessPolicy -ObjectId $currentUserObjectId -VaultName $CA -PermissionsToCertificates all
 
 # Create a non-exportable Self-Signed Root CA that can be used to generate client and server certificates
@@ -29,9 +28,10 @@ $policy = New-AzKeyVaultCertificatePolicy -SecretContentType "application/x-pkcs
 Add-AzKeyVaultCertificate -VaultName $CA -Name $CAName -CertificatePolicy $policy
 
 # Generate a test certificate
+$func = Get-AzFunctionApp -Name "$CA-func" -ResourceGroup $RG
 $san = "mysite.local"
 $certname = "mysite-local"
-$uri = "https://rbklca4-func.azurewebsites.net/api/NewTlsCertificate?name=$certname&subject=$san&fqdn=$san&code=pv5b7r0Qjdj1qJ6bh66kvshrJTbpCtnVGmb2urrvm-WrAzFulamUhg=="
+$uri = "https://<function name>.azurewebsites.net/api/NewTlsCertificate?name=$certname&subject=$san&fqdn=$san&code=<function code>"
 
 Invoke-WebRequest -Uri $uri
 
