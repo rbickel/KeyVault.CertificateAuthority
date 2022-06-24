@@ -1,7 +1,7 @@
 param location string
 param name string
 
-var latestRelease = 'https://github.com/rbickel/KeyVault.CertificateAuthority/releases/download/0.1.0/KeyVault.CertificateFunctions.0.1.0.zip'
+var latestRelease = 'https://github.com/rbickel/KeyVault.CertificateAuthority/releases/download/0.1.1/KeyVault.CertificateFunctions.0.1.0.zip'
 var storageAccountName = uniqueString(resourceGroup().id)
 
 resource keyvault 'Microsoft.KeyVault/vaults@2021-11-01-preview' = {
@@ -116,7 +116,7 @@ resource eventGridTopicSubscription 'Microsoft.EventGrid/systemTopics/eventSubsc
       properties: {
         maxEventsPerBatch: 1
         preferredBatchSizeInKilobytes: 64
-        resourceId: '${function.id}/functions/EventGridRenewCertificate'
+        resourceId: '${function.id}/functions/RenewTlsCertificate'
       }
     }
     filter:{
