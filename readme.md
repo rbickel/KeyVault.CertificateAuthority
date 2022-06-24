@@ -29,13 +29,17 @@ Set-AzKeyVaultAccessPolicy -ObjectId $currentUserObjectId -VaultName $CA -Permis
 $CAName = "RootCA"
 $CASan = "ca.local"
 $policy = New-AzKeyVaultCertificatePolicy -SecretContentType "application/x-pkcs12" -SubjectName "CN=$CASan" -IssuerName "Self" -ValidityInMonths 48 -ReuseKeyOnRenewal -KeyNotExportable
-Add-AzKeyVaultCertificate -VaultName $CA -Name $CAName -CertificatePolicy $policy
+$tags = @{
+    IssuerName = $CAName
+}
+Add-AzKeyVaultCertificate -VaultName $CA -Name $CAName -CertificatePolicy $policy -Tag $tags
 
 # Generate a test certificate
-$san = "mysite.local"
+$san1 = "mysite.local"
+$san2 = "*.mysite.local"
 $certname = "mysite-local"
 $code = $deployment.Outputs.functionKeys.Value
-$uri = "https://$CA-func.azurewebsites.net/api/NewTlsCertificate?code=$code&name=$certname&subject=$san&fqdn=$san"
+$uri = "https://$CA-func.azurewebsites.net/api/NewTlsCertificate?code=$code&name=$certname&subject=$san1&fqdn=$san1&fqdn=$san2"
 
 Invoke-WebRequest -Uri $uri
 #Your certificate should be created in Azure KeyVault if everything went through :)
