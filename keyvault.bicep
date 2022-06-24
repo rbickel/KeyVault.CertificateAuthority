@@ -1,7 +1,7 @@
 param location string
 param name string
 
-var latestRelease = 'https://github.com/rbickel/KeyVault.CertificateAuthority/releases/download/0.1.1/KeyVault.CertificateFunctions.0.1.0.zip'
+var latestRelease = 'https://github.com/rbickel/KeyVault.CertificateAuthority/releases/download/0.1.1/KeyVault.CertificateAuthority.0.1.1.zip'
 var storageAccountName = uniqueString(resourceGroup().id)
 
 resource keyvault 'Microsoft.KeyVault/vaults@2021-11-01-preview' = {
@@ -63,11 +63,7 @@ resource function 'Microsoft.Web/sites@2021-03-01' = {
         }
         {
           name: 'FUNCTIONS_EXTENSION_VERSION'
-          value: '~2'
-        }
-        {
-          name: 'WEBSITE_NODE_DEFAULT_VERSION'
-          value: '~10'
+          value: '~4'
         }
         {
           name: 'FUNCTIONS_WORKER_RUNTIME'
@@ -79,7 +75,7 @@ resource function 'Microsoft.Web/sites@2021-03-01' = {
         }
         {
           name: 'DefaultKeyVaultUri '
-          value: keyvault.id
+          value: keyvault.properties.vaultUri
         }        
         {
           name: 'DefaultKeyCACertificate'
