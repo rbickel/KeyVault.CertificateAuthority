@@ -1,7 +1,7 @@
 param location string
 param name string
 
-var latestRelease = 'https://github.com/rbickel/KeyVault.CertificateAuthority/releases/download/0.1.1/KeyVault.CertificateAuthority.0.1.1.zip'
+var latestRelease = 'https://github.com/rbickel/KeyVault.CertificateAuthority/releases/download/0.1.2/KeyVault.CertificateAuthority.0.1.2.zip'
 var storageAccountName = uniqueString(resourceGroup().id)
 
 resource keyvault 'Microsoft.KeyVault/vaults@2021-11-01-preview' = {

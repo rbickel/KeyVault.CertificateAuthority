@@ -15,25 +15,25 @@ namespace KeyVault.TlsAutoRenew
     
     public static class HttpNewCertificate
     {
-        private static string _defaultKeyVaultUri= Environment.GetEnvironmentVariable("DefaultKeyVaultUri");
-        private static string _defaultDurationDays = Environment.GetEnvironmentVariable("DefaultCertificateDuration");
-        private static string _defaultCA = Environment.GetEnvironmentVariable("DefaultKeyCACertificate");
-
         [FunctionName("NewTlsCertificate")]
         public static async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
             ILogger log)
         {
+            string defaultKeyVaultUri= Environment.GetEnvironmentVariable("DefaultKeyVaultUri");
+            string defaultDurationDays = Environment.GetEnvironmentVariable("DefaultCertificateDuration");
+            string defaultCA = Environment.GetEnvironmentVariable("DefaultKeyCACertificate");
+
             log.LogInformation("C# HTTP trigger function processed a request.");    
 
             string name = req.Query["name"];
             string subject = req.Query["subject"];
             string[] fqdn = req.Query["fqdn"];
-            string issuer = _defaultCA;
+            string issuer = defaultCA;
 
             //missing params validation
-            var kvCertProvider = KeyVaultCertificateProvider.GetKeyVaultCertificateProvider(_defaultKeyVaultUri, log);
-            await kvCertProvider.CreateCertificateAsync(issuer, name, $"CN={subject}",  int.Parse(_defaultDurationDays), fqdn, 1);
+            var kvCertProvider = KeyVaultCertificateProvider.GetKeyVaultCertificateProvider(defaultKeyVaultUri, log);
+            await kvCertProvider.CreateCertificateAsync(issuer, name, $"CN={subject}",  int.Parse(defaultDurationDays), fqdn, 1);
 
             string responseMessage = "Certificate generated successfully";
             return new OkObjectResult(responseMessage);

@@ -14,13 +14,14 @@ namespace KeyVault.TlsAutoRenew
 {
     public static class EventGridRenewCertificate
     {
-        private static string _defaultKeyVaultUri= Environment.GetEnvironmentVariable("DefaultKeyVaultUri");
-        private static string _defaultDurationDays = Environment.GetEnvironmentVariable("DefaultCertificateDuration");
-        private static string _defaultCA = Environment.GetEnvironmentVariable("DefaultKeyCACertificate");
-        
+
         [FunctionName("RenewTlsCertificate")]
         public static async Task Run([EventGridTrigger] EventGridEvent eventGridEvent, ILogger log)
         {
+            string defaultKeyVaultUri= Environment.GetEnvironmentVariable("DefaultKeyVaultUri");
+            string defaultDurationDays = Environment.GetEnvironmentVariable("DefaultCertificateDuration");
+            string defaultCA = Environment.GetEnvironmentVariable("DefaultKeyCACertificate");
+
             var data = (dynamic)eventGridEvent.Data;
             string certificateId = data.Id.ToString();
             string certificateName = data.ObjectName.ToString();
@@ -34,8 +35,8 @@ namespace KeyVault.TlsAutoRenew
             
             var issuer = certWithPolicy.Properties.Tags["IssuerName"];
 
-            await kvCertProvider2.RenewCertificateAsync(certWithPolicy, int.Parse(_defaultDurationDays));
-            log.LogInformation($"Certificate {certWithPolicy.Name} renewed by {issuer} for {_defaultDurationDays} days");
+            await kvCertProvider2.RenewCertificateAsync(certWithPolicy, int.Parse(defaultDurationDays));
+            log.LogInformation($"Certificate {certWithPolicy.Name} renewed by {issuer} for {defaultDurationDays} days");
         }
     }
 }
