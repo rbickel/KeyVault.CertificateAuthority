@@ -148,3 +148,5 @@ resource keyvaultPolicy 'Microsoft.KeyVault/vaults/accessPolicies@2021-11-01-pre
     ]
   }
 }
+
+output functionKeys string = listkeys(concat(function.id, '/host/default'), '2022-03-01').functionKeys.default

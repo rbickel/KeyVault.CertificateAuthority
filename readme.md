@@ -14,8 +14,12 @@ $CA = '<keyvault name>'
 $LOCATION = '<region>'
 
 # Create the resource group and the KeyVault account
-az group create -g $RG -l $LOCATION
-az deployment group create -g $RG --template-file .\keyvault.bicep --parameters "{ 'name': { 'value': '$CA' }, 'location': { 'value': '$LOCATION' } }"
+New-AzResourceGroup -Name $RG -Location $LOCATION
+$params = @{ 
+    name = $CA
+    location = $LOCATION 
+}
+$deployment = New-AzResourceGroupDeployment -ResourceGroupName $RG -TemplateFile .\keyvault.bicep -TemplateParameterObject $params
 
 # Set Key Vault Administrator permission for current user (needed to generate CA)
 $currentUserObjectId = (Get-AzADUser -UserPrincipalName (Get-AzContext).Account).Id
@@ -28,13 +32,13 @@ $policy = New-AzKeyVaultCertificatePolicy -SecretContentType "application/x-pkcs
 Add-AzKeyVaultCertificate -VaultName $CA -Name $CAName -CertificatePolicy $policy
 
 # Generate a test certificate
-$func = Get-AzFunctionApp -Name "$CA-func" -ResourceGroup $RG
 $san = "mysite.local"
 $certname = "mysite-local"
-$uri = "https://<function name>.azurewebsites.net/api/NewTlsCertificate?name=$certname&subject=$san&fqdn=$san&code=<function code>"
+$code = $deployment.Outputs.functionKeys.Value
+$uri = "https://$CA-func.azurewebsites.net/api/NewTlsCertificate?code=$code&name=$certname&subject=$san&fqdn=$san"
 
 Invoke-WebRequest -Uri $uri
-
+#Your certificate should be created in Azure KeyVault if everything went through :)
 ```
 
 

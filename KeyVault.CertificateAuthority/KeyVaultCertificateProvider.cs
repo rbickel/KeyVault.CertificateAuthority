@@ -61,7 +61,7 @@ namespace KeyVault.CertificateAuthority
 
         public async Task CreateCertificateAsync(string issuerCertificateName, string certificateName, string subject, int durationDays, string[] san, int certPathLength = 1)
         {
-            var notBefore = DateTime.UtcNow.AddDays(-1);
+            var notBefore = DateTime.UtcNow.Date;
             await _keyVaultServiceClient.CreateCertificateAsync(
                     issuerCertificateName,
                     certificateName,
@@ -80,7 +80,7 @@ namespace KeyVault.CertificateAuthority
             if (certWithPolicy.Properties.Tags.TryGetValue("IssuerName", out string issuerName))
             {
                 int certPathLength = 1;
-                var notBefore = DateTime.UtcNow.AddDays(-1);
+                var notBefore = DateTime.UtcNow.Date;
                 await _keyVaultServiceClient.CreateCertificateAsync(
                         issuerName,
                         certWithPolicy.Name,
