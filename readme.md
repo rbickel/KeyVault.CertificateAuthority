@@ -1,6 +1,6 @@
 # KeyVault Certificate Authority
 
-The goal of this project is to provide a mecanism to issue CA signed certificate internally, leveraging KeyVault. While KeyVault can create Self-Signed certificate and auto-renew them, those certificate may not be used in certain services. The idea is to generate and renew X509 certificates using a CA certificate generated in KeyVault. Using this approach, generated certificates may be used in some services, that usually don't support self-signed certificates. The whole solution generate and renew certificates while never handling/moving any private key. No private key ever leave the KeyVault instance.
+The goal of this solution is to provide a basic `serverless PKI (primary key infrastructure)`. While KeyVault can create Self-Signed certificate and auto-renew them, those certificate are signed by themselves and not a certificate authority. The idea is to generate(renew) and sign X509 certificates using another KeyVault certifiate as issuer (private CA). The whole solution generate and renew certificates while never handling/moving any private key. No private key ever leave the KeyVault instance.
 
 A KeyVault resource is deployed to store/sign certificates, and Azure function to issue child certificates and renew them, and an Event Grid subscription to autmatically renew certificates before expiration.
 
