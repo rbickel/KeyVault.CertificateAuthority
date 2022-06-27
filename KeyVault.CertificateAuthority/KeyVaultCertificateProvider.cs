@@ -21,10 +21,9 @@ namespace KeyVault.CertificateAuthority
         private readonly KeyVaultServiceClient _keyVaultServiceClient;
         private readonly ILogger _logger;
 
-        public static KeyVaultCertificateProvider GetKeyVaultCertificateProvider(string keyVaultUrl, string managedIdentityId)
+        public static KeyVaultCertificateProvider GetKeyVaultCertificateProvider(string keyVaultUrl)
         {
-            string userAssignedClientId = managedIdentityId;
-            var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions { ManagedIdentityClientId = userAssignedClientId });
+            var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions());
 
             using ILoggerFactory loggerFactory =
                 LoggerFactory.Create(builder =>
@@ -69,9 +68,9 @@ namespace KeyVault.CertificateAuthority
                     san,
                     notBefore,
                     DateTime.UtcNow.AddDays(durationDays),
-                    2048,
-                    256,
-                    1);
+                    KeyVaultCertFactory.DefaultKeySize,
+                    KeyVaultCertFactory.DefaultHashSize,
+                    certPathLength);
             _logger.LogInformation("A new certificate with issuer name {name} and path length {path} was created succsessfully.", issuerCertificateName, certPathLength);
         }
 
@@ -88,8 +87,8 @@ namespace KeyVault.CertificateAuthority
                         certWithPolicy.Policy.SubjectAlternativeNames,
                         notBefore,
                         DateTime.UtcNow.AddDays(duration),
-                        certWithPolicy.Policy.KeySize.Value,
-                        256,
+                        KeyVaultCertFactory.DefaultKeySize,
+                        KeyVaultCertFactory.DefaultHashSize,
                         certPathLength);
 
                         _logger.LogInformation("A new certificate with issuer name {name} and path length {path} was created succsessfully.", issuerName, certPathLength);

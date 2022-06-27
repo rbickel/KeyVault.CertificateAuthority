@@ -16,6 +16,7 @@ namespace KeyVault.CertificateAuthority
     {
         public const int SerialNumberLength = 20;
         public const int DefaultKeySize = 2048;
+        public const int DefaultHashSize = 256;
 
         /// <summary>
         /// Creates a KeyVault signed certificate.
