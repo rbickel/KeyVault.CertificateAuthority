@@ -1,10 +1,8 @@
 # KeyVault Certificate Authority
 
-The goal of thei project is to provide a mecanism to issue CA signed certificate internally, leveraging KeyVault. While KeyVault can create Self-Signed certificate and auto-renew them, those certificate may not be used in certain services.
+The goal of this project is to provide a mecanism to issue CA signed certificate internally, leveraging KeyVault. While KeyVault can create Self-Signed certificate and auto-renew them, those certificate may not be used in certain services. The idea is to generate and renew X509 certificates using a CA certificate generated in KeyVault. Using this approach, generated certificates may be used in some services, that usually don't support self-signed certificates. The whole solution generate and renew certificates while never handling/moving any private key. No private key ever leave the KeyVault instance.
 
-The idea is to generate and renew X509 certificates using a CA certificate generated in KeyVault. Using this approach, generated certificates may be used in some services, that usually don't support self-signed certificates.
-
-The whole solution generate and renew certificates while never handling any private key. No private key ever leave the KeyVault isntance.
+A KeyVault resource is deployed to store/sign certificates, and Azure function to issue child certificates and renew them, and an Event Grid subscription to autmatically renew certificates before expiration.
 
 ## Get started
 
@@ -45,5 +43,10 @@ Invoke-WebRequest -Uri $uri
 #Your certificate should be created in Azure KeyVault if everything went through :)
 ```
 
+## Limitations and issues
 
+- As the bicep template defines access policies, deployment on an existing keyvault will override existing access policies
+- The Azure function is deployed using a consumption plan, thuis not integrated with the VNet. KeyVault must therefore authorize public access (The bicep template doesn't configure KV Firewall)
+- You can generate a client certificate with any existing certificate with its private key in the KeyVault . However, only the parent issuer certificate is bundled in the client PEM/PFX certificate (not the complete chain).
+- 
 
