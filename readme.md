@@ -37,7 +37,7 @@ $san1 = "mysite.local"
 $san2 = "*.mysite.local"
 $certname = "mysite-local"
 $code = $deployment.Outputs.functionKeys.Value
-$uri = "https://$CA-func.azurewebsites.net/api/NewTlsCertificate?code=$code&name=$certname&subject=$san1&fqdn=$san1&fqdn=$san2"
+$uri = "https://$CA-func.azurewebsites.net/api/NewTlsCertificate?code=$code&name=$certname&subject=$san1&san=$san1&san=$san2"
 
 Invoke-WebRequest -Uri $uri
 #Your certificate should be created in Azure KeyVault if everything went through :)
