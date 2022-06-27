@@ -4,6 +4,8 @@ The goal of this project is to provide a mecanism to issue CA signed certificate
 
 A KeyVault resource is deployed to store/sign certificates, and Azure function to issue child certificates and renew them, and an Event Grid subscription to autmatically renew certificates before expiration.
 
+![solution_design](https://user-images.githubusercontent.com/11852796/175933489-65a86f36-0eb0-4733-9034-9343a81d108c.png)
+
 ## Get started
 
 ```powershell
