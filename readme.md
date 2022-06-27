@@ -8,10 +8,18 @@ A KeyVault resource is deployed to store/sign certificates, and Azure function t
 
 ## Get started
 
+Every stage below needs to run sequentially in the same console environment and this specific order. Splitted in different code section for clarity
+
+### Define environment settings
 ```powershell
+
 $RG = '<resource group name>'
 $CA = '<keyvault name>'
 $LOCATION = '<region>'
+
+```
+### Create KeyVault, Azure Function, Event Grid topic, Event Grid subscriptiom
+```powershell
 
 # Create the resource group and the KeyVault account
 New-AzResourceGroup -Name $RG -Location $LOCATION
@@ -25,6 +33,10 @@ $deployment = New-AzResourceGroupDeployment -ResourceGroupName $RG -TemplateFile
 $currentUserObjectId = (Get-AzADUser -UserPrincipalName (Get-AzContext).Account).Id
 Set-AzKeyVaultAccessPolicy -ObjectId $currentUserObjectId -VaultName $CA -PermissionsToCertificates all
 
+```
+### Generate a CA Certificate by using KV Self-Signed capabilities
+```powershell
+
 # Create a non-exportable Self-Signed Root CA that can be used to generate client and server certificates
 $CAName = "RootCA"
 $CASan = "ca.local"
@@ -33,6 +45,10 @@ $tags = @{
     IssuerName = $CAName
 }
 Add-AzKeyVaultCertificate -VaultName $CA -Name $CAName -CertificatePolicy $policy -Tag $tags
+
+```
+### Generate a CA signed certificate with the Azure Function
+```powershell
 
 # Generate a test certificate
 $san1 = "mysite.local"
