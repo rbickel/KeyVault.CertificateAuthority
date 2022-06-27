@@ -64,7 +64,7 @@ Invoke-WebRequest -Uri $uri
 ## Limitations and issues
 
 - As the bicep template defines access policies, deployment on an existing keyvault will override existing access policies
-- The Azure function is deployed using a consumption plan, thuis not integrated with the VNet. KeyVault must therefore authorize public access (The bicep template doesn't configure KV Firewall)
+- The Azure function is deployed using a consumption plan. KeyVault must therefore authorize public access (The bicep template doesn't configure KV Firewall)
 - You can generate a client certificate with any existing certificate with its private key in the KeyVault . However, only the parent issuer certificate is bundled in the client PEM/PFX certificate (not the complete chain).
 - 
 
