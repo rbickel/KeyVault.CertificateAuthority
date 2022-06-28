@@ -25,7 +25,8 @@ $LOCATION = '<region>'
 New-AzResourceGroup -Name $RG -Location $LOCATION
 $params = @{ 
     name = $CA
-    location = $LOCATION 
+    location = $LOCATION
+    functionsPackage = 'https://github.com/rbickel/KeyVault.CertificateAuthority/releases/download/0.2.0/KeyVault.CertificateAuthority.0.2.0.zip'
 }
 $deployment = New-AzResourceGroupDeployment -ResourceGroupName $RG -TemplateFile .\keyvault.bicep -TemplateParameterObject $params
 ```
@@ -44,7 +45,7 @@ Invoke-WebRequest -Uri $uri
 $san1 = "mysite.local"
 $san2 = "*.mysite.local"
 $certname = "mysite-local"
-$uri = "https://$CA-func.azurewebsites.net/api/NewTlsCertificate?code=$code&name=$certname&subject=$san1&san=$san1&san=$san2"
+$uri = "https://$CA-func.azurewebsites.net/api/NewTlsCertificate?code=$code&name=$certname&issuer=$CAName&subject=$san1&san=$san1&san=$san2"
 
 Invoke-WebRequest -Uri $uri
 #Your certificate should be created in Azure KeyVault if everything went through :)

@@ -1,7 +1,6 @@
 param location string
 param name string
-
-var latestRelease = 'https://github.com/rbickel/KeyVault.CertificateAuthority/releases/download/0.2.0/KeyVault.CertificateAuthority.0.2.0.zip'
+param functionsPackage string
 var storageAccountName = uniqueString(resourceGroup().id)
 
 resource keyvault 'Microsoft.KeyVault/vaults@2021-11-01-preview' = {
@@ -71,7 +70,7 @@ resource function 'Microsoft.Web/sites@2021-03-01' = {
         }
         {
           name: 'WEBSITE_RUN_FROM_PACKAGE '
-          value: latestRelease
+          value: functionsPackage
         }
         {
           name: 'DefaultKeyVaultUri '
