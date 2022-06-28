@@ -12,15 +12,17 @@ Every stage below needs to run sequentially in the same console environment and 
 
 ### Define environment settings
 ```powershell
+#powershell snippet
+#replace values below or use them as is to give a try.
 
-$RG = '<resource group name>'
-$CA = '<keyvault name>'
-$LOCATION = '<region>'
+$RG = 'mykeyvaultauthority'  #resource group name
+$CA = "kv$(Get-Random)"  #keyvault+resources name
+$LOCATION = 'switzerland north'  #region
 
 ```
 ### Create KeyVault, Azure Function, Event Grid topic, Event Grid subscriptiom
 ```powershell
-
+#powershell snippet
 # Create the resource group and the KeyVault account
 New-AzResourceGroup -Name $RG -Location $LOCATION
 $params = @{ 
@@ -32,21 +34,24 @@ $deployment = New-AzResourceGroupDeployment -ResourceGroupName $RG -TemplateFile
 ```
 ### Generate a CA and a a signed certificate with the Azure Function
 ```powershell
+#powershell snippet
 # Retrieve the function authorization code
 $code = $deployment.Outputs.functionKeys.Value
 
-$CAName="my-ca-certificate"
+$CAName="myca-local"
 $CASubject="myca.local"
 $uri = "https://$CA-func.azurewebsites.net/api/NewTlsCertificate?code=$code&name=$CAName&subject=$CASubject&san=$CASubject&ca=true"
 
+#Calls the Azure function to generate the CA certificate
 Invoke-WebRequest -Uri $uri
 
 # Generate a test certificate
+$certname = "mysite-local"
 $san1 = "mysite.local"
 $san2 = "*.mysite.local"
-$certname = "mysite-local"
 $uri = "https://$CA-func.azurewebsites.net/api/NewTlsCertificate?code=$code&name=$certname&issuer=$CAName&subject=$san1&san=$san1&san=$san2"
 
+#Calls the Azure function to generate the TLS certificate signed by our CA
 Invoke-WebRequest -Uri $uri
 #Your certificate should be created in Azure KeyVault if everything went through :)
 ```
@@ -56,5 +61,4 @@ Invoke-WebRequest -Uri $uri
 - As the bicep template defines access policies, deployment on an existing keyvault will override existing access policies
 - The Azure function is deployed using a consumption plan. KeyVault must therefore authorize public access (The bicep template doesn't configure KV Firewall)
 - You can generate a client certificate with any existing certificate with its private key in the KeyVault . However, only the parent issuer certificate is bundled in the client PEM/PFX certificate (not the complete chain).
-- 
 
