@@ -1,6 +1,6 @@
 # KeyVault Certificate Authority
 
-The goal of this solution is to provide a basic `serverless PKI (primary key infrastructure)`. While KeyVault can create Self-Signed certificate and auto-renew them, those certificate are signed by themselves and not a certificate authority. The idea is to generate(renew) and sign X509 certificates using another KeyVault certifiate as issuer (private CA). The whole solution generate and renew certificates while never handling/moving any private key. No private key ever leave the KeyVault instance.
+The goal of this solution is to provide a basic `serverless PKI (primary key infrastructure)`. While KeyVault can create Self-Signed certificate and auto-renew them, those certificate are signed by themselves and not a valid certificate authority. The idea is to generate(renew) and sign X509 certificates using another KeyVault certifiate as issuer (private CA). The whole solution generate and renew certificates while never handling/moving any private key. No private key ever leave the KeyVault instance.
 
 A KeyVault resource is deployed to store/sign certificates, and Azure function to issue child certificates and renew them, and an Event Grid subscription to autmatically renew certificates before expiration.
 
@@ -28,33 +28,22 @@ $params = @{
     location = $LOCATION 
 }
 $deployment = New-AzResourceGroupDeployment -ResourceGroupName $RG -TemplateFile .\keyvault.bicep -TemplateParameterObject $params
-
-# Set Key Vault Administrator permission for current user (needed to generate CA)
-$currentUserObjectId = (Get-AzADUser -UserPrincipalName (Get-AzContext).Account).Id
-Set-AzKeyVaultAccessPolicy -ObjectId $currentUserObjectId -VaultName $CA -PermissionsToCertificates all
-
 ```
-### Generate a CA Certificate by using KV Self-Signed capabilities
+### Generate a CA and a a signed certificate with the Azure Function
 ```powershell
+# Retrieve the function authorization code
+$code = $deployment.Outputs.functionKeys.Value
 
-# Create a non-exportable Self-Signed Root CA that can be used to generate client and server certificates
-$CAName = "RootCA"
-$CASan = "ca.local"
-$policy = New-AzKeyVaultCertificatePolicy -SecretContentType "application/x-pkcs12" -SubjectName "CN=$CASan" -IssuerName "Self" -ValidityInMonths 48 -ReuseKeyOnRenewal -KeyNotExportable
-$tags = @{
-    IssuerName = $CAName
-}
-Add-AzKeyVaultCertificate -VaultName $CA -Name $CAName -CertificatePolicy $policy -Tag $tags
+$CAName="my-ca-certificate"
+$CASubject="myca.local"
+$uri = "https://$CA-func.azurewebsites.net/api/NewTlsCertificate?code=$code&name=$CAName&subject=$CASubject&san=$CASubject&ca=true"
 
-```
-### Generate a CA signed certificate with the Azure Function
-```powershell
+Invoke-WebRequest -Uri $uri
 
 # Generate a test certificate
 $san1 = "mysite.local"
 $san2 = "*.mysite.local"
 $certname = "mysite-local"
-$code = $deployment.Outputs.functionKeys.Value
 $uri = "https://$CA-func.azurewebsites.net/api/NewTlsCertificate?code=$code&name=$certname&subject=$san1&san=$san1&san=$san2"
 
 Invoke-WebRequest -Uri $uri

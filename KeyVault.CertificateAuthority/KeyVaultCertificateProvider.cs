@@ -58,7 +58,7 @@ namespace KeyVault.CertificateAuthority
             _logger = logger;
         }
 
-        public async Task CreateCertificateAsync(string issuerCertificateName, string certificateName, string subject, int durationDays, string[] san, int certPathLength = 1)
+        public async Task CreateCertificateAsync(string issuerCertificateName, string certificateName, string subject, int durationDays, string[] san)
         {
             var notBefore = DateTime.UtcNow.Date;
             await _keyVaultServiceClient.CreateCertificateAsync(
@@ -70,8 +70,26 @@ namespace KeyVault.CertificateAuthority
                     DateTime.UtcNow.AddDays(durationDays),
                     KeyVaultCertFactory.DefaultKeySize,
                     KeyVaultCertFactory.DefaultHashSize,
-                    certPathLength);
-            _logger.LogInformation("A new certificate with issuer name {name} and path length {path} was created succsessfully.", issuerCertificateName, certPathLength);
+                    0);
+            _logger.LogInformation("A new certificate with issuer name {name} and path length {path} was created succsessfully.", issuerCertificateName, 0);
+        }
+
+        public async Task CreateCACertificateAsync(string certificateName, string subject, int durationDays, string[] san, int certPathLength = 3)
+        {
+            var notBefore = DateTime.UtcNow.Date;
+            await _keyVaultServiceClient.CreateCertificateAsync(
+                    certificateName,
+                    certificateName,
+                    subject,
+                    san,
+                    notBefore,
+                    DateTime.UtcNow.AddDays(durationDays),
+                    KeyVaultCertFactory.DefaultKeySize,
+                    KeyVaultCertFactory.DefaultHashSize,
+                    certPathLength,
+                    true               
+                    );
+            _logger.LogInformation("A new CA certificate with name {name} and path length {path} was created succsessfully.", certificateName, certPathLength);
         }
 
         public async Task RenewCertificateAsync(KeyVaultCertificateWithPolicy certWithPolicy, int duration)

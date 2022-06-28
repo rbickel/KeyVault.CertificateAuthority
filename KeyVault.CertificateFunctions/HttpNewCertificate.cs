@@ -28,6 +28,7 @@ namespace KeyVault.TlsAutoRenew
         {
             string defaultKeyVaultUri = Environment.GetEnvironmentVariable("DefaultKeyVaultUri");
             string defaultDurationDays = Environment.GetEnvironmentVariable("DefaultCertificateDuration");
+            string defaultCADurationDays = Environment.GetEnvironmentVariable("DefaultCACertificateDuration");
             string defaultCA = Environment.GetEnvironmentVariable("DefaultKeyCACertificate");
 
             log.LogInformation("C# HTTP trigger function processed a request.");
@@ -35,7 +36,9 @@ namespace KeyVault.TlsAutoRenew
             string name = req.Query["name"];
             string subject = req.Query["subject"];
             string[] san = req.Query["san"];
-            string issuer = defaultCA;
+            string issuer = req.Query["issuer"];
+            bool.TryParse(req.Query["ca"], out bool ca);
+
 
             //parameters validation
             if (!_nameRegex.Match(name ?? string.Empty).Success)
@@ -46,6 +49,16 @@ namespace KeyVault.TlsAutoRenew
                     StatusCode = 400
                 };
             }
+
+            //parameters validation
+            if (!ca && !_nameRegex.Match(issuer ?? string.Empty).Success)
+            {
+                // does not match
+                return new ObjectResult($"Invalid isser name provided. Must match {_nameRegex}")
+                {
+                    StatusCode = 400
+                };
+            }            
 
             if (!_subjectRegex.Match(subject ?? string.Empty).Success)
             {
@@ -68,12 +81,18 @@ namespace KeyVault.TlsAutoRenew
                 }
             }
 
-            //missing params validation
             var kvCertProvider = KeyVaultCertificateProvider.GetKeyVaultCertificateProvider(defaultKeyVaultUri, log);
-            await kvCertProvider.CreateCertificateAsync(issuer, name, $"CN={subject}", int.Parse(defaultDurationDays), san, 1);
-
-            string responseMessage = "Certificate generated successfully";
-            return new OkObjectResult(responseMessage);
+            if (ca)
+            {
+                //generate CA certificate
+                await kvCertProvider.CreateCACertificateAsync(name, $"CN={subject}", int.Parse(defaultCADurationDays), san);
+            }
+            else
+            {
+                await kvCertProvider.CreateCertificateAsync(issuer, name, $"CN={subject}", int.Parse(defaultDurationDays), san);
+            }
+            
+            return new OkObjectResult(ca ? "CA Certificate generated successfully" : "Certificate generated successfully");
         }
     }
 }

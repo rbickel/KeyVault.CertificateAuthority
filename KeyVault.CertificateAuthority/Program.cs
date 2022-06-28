@@ -11,7 +11,7 @@ namespace KeyVaultCA
 {
     class Program
     {
-        private static string _keyVaultUrl="https://rbklca.vault.azure.net/";
+        private static string _keyVaultUrl="https://rbklkvssl.vault.azure.net/";
         static async Task Main(string[] args)
         {
             using var loggerFactory = LoggerFactory.Create(builder =>
@@ -37,23 +37,25 @@ namespace KeyVaultCA
             
 
             //CREATE CERTIFICATE
-            //var kvCertProvider = KeyVaultCertificateProvider.GetKeyVaultCertificateProvider(_keyVaultUrl, cred, loggerFactory);
-            //await kvCertProvider.CreateCertificateAsync("RootCA", "certs-rbkl-io", "CN=certs.rbkl.io", 365, new string[]{"certs.rbkl.io", "*.certs.rbkl.io"}, 1);
+            var kvCertProvider = KeyVaultCertificateProvider.GetKeyVaultCertificateProvider(_keyVaultUrl, cred, loggerFactory);
+            
+            //await kvCertProvider.CreateCACertificateAsync("pki-rbkl-io", "CN=pki.rbkl.io", 365, new string[]{"pki.rbkl.io"}, 3);
+            await kvCertProvider.CreateCertificateAsync("pki-rbkl-io", "backend1-rbkl-io", "CN=backend1.rbkl.io", 365, new string[]{"backend1.rbkl.io"});
 
             //RENEW CERTIFICATE
-            string certificateId = "https://rbklca.vault.azure.net/certificates/test/6c8df374a5c44f6d870709fb0057a96c";
-            var keyVaultUri = new Uri(certificateId);
-            string certificateName = "test";
+            // string certificateId = "https://rbklca.vault.azure.net/certificates/test/6c8df374a5c44f6d870709fb0057a96c";
+            // var keyVaultUri = new Uri(certificateId);
+            // string certificateName = "test";
 
-            var kvCertProvider2 = KeyVaultCertificateProvider.GetKeyVaultCertificateProvider($"https://{keyVaultUri.Host}", cred, loggerFactory);
-            var certWithPolicy = await kvCertProvider2.GetCertificatePolicyAsync(certificateName);
-            //var existingCert = new X509Certificate2(policy.Cer);
+            // var kvCertProvider2 = KeyVaultCertificateProvider.GetKeyVaultCertificateProvider($"https://{keyVaultUri.Host}", cred, loggerFactory);
+            // var certWithPolicy = await kvCertProvider2.GetCertificatePolicyAsync(certificateName);
+            // //var existingCert = new X509Certificate2(policy.Cer);
             
-            var issuer = certWithPolicy.Properties.Tags["IssuerName"];
-            var issuerId = certWithPolicy.Properties.Tags["IssuerId"];
-            var issuerSubject = certWithPolicy.Policy.IssuerName;
+            // var issuer = certWithPolicy.Properties.Tags["IssuerName"];
+            // var issuerId = certWithPolicy.Properties.Tags["IssuerId"];
+            // var issuerSubject = certWithPolicy.Policy.IssuerName;
 
-            await kvCertProvider2.RenewCertificateAsync(certWithPolicy, 365);
+            // await kvCertProvider2.RenewCertificateAsync(certWithPolicy, 365);
 
 
             // // Issue device certificate
