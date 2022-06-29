@@ -7,7 +7,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/KeyVault.CertificateAuthority.csproj",
+                "${workspaceFolder}/KeyVault.CertificateAuthority/KeyVault.CertificateAuthority.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -19,7 +19,7 @@
             "type": "process",
             "args": [
                 "publish",
-                "${workspaceFolder}/KeyVault.CertificateAuthority.csproj",
+                "${workspaceFolder}/KeyVault.CertificateAuthority/KeyVault.CertificateAuthority.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -33,7 +33,7 @@
                 "watch",
                 "run",
                 "--project",
-                "${workspaceFolder}/KeyVault.CertificateAuthority.csproj"
+                "${workspaceFolder}/KeyVault.CertificateAuthority/KeyVault.CertificateAuthority.csproj"
             ],
             "problemMatcher": "$msCompile"
         },
@@ -48,7 +48,7 @@
             "type": "process",
             "problemMatcher": "$msCompile",
             "options": {
-                "cwd": "${workspaceFolder}/KeyVault.TlsAutoRenew"
+                "cwd": "${workspaceFolder}/KeyVault.CertificateFunctions"
             }
         },
         {
@@ -67,9 +67,21 @@
             },
             "problemMatcher": "$msCompile",
             "options": {
-                "cwd": "${workspaceFolder}/KeyVault.TlsAutoRenew"
+                "cwd": "${workspaceFolder}/KeyVault.CertificateFunctions"
             }
         },
+        {
+            "label": "Start function",
+            "command": "func",
+            "args": [
+                "start"
+            ],
+            "type": "process",
+            "problemMatcher": "$msCompile",
+            "options": {
+                "cwd": "${workspaceFolder}/KeyVault.CertificateFunctions"
+            }
+        },        
         {
             "label": "clean release (functions)",
             "command": "dotnet",
@@ -83,7 +95,7 @@
             "type": "process",
             "problemMatcher": "$msCompile",
             "options": {
-                "cwd": "${workspaceFolder}/KeyVault.TlsAutoRenew"
+                "cwd": "${workspaceFolder}/KeyVault.CertificateFunctions"
             }
         },
         {
@@ -100,14 +112,14 @@
             "dependsOn": "clean release (functions)",
             "problemMatcher": "$msCompile",
             "options": {
-                "cwd": "${workspaceFolder}/KeyVault.TlsAutoRenew"
+                "cwd": "${workspaceFolder}/KeyVault.CertificateFunctions"
             }
         },
         {
             "type": "func",
             "dependsOn": "build (functions)",
             "options": {
-                "cwd": "${workspaceFolder}/KeyVault.TlsAutoRenew/bin/Debug/net6.0"
+                "cwd": "${workspaceFolder}/KeyVault.CertificateFunctions/bin/Debug/net6.0"
             },
             "command": "host start",
             "isBackground": true,

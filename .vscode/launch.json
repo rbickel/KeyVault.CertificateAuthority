@@ -1,0 +1,39 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "CertificateAuthority program run",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/KeyVault.CertificateAuthority/bin/Debug/net6.0/KeyVault.CertificateAuthority.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/KeyVault.CertificateAuthority",
+            "console": "internalConsole",
+            "stopAtEntry": false
+        },
+        {
+
+            "name": "CertificateFunctions func run",
+            "type": "func",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/KeyVault.CertificateFunctions/bin/Debug/net6.0/KeyVault.CertificateFunctions.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/KeyVault.CertificateFunctions",
+            "console": "internalConsole",
+            "stopAtEntry": false
+        },        
+        {
+            "name": ".NET Core Attach",
+            "type": "coreclr",
+            "request": "attach"
+        },
+        {
+            "name": "Attach to .NET Functions",
+            "type": "coreclr",
+            "request": "attach",
+            "processId": "${command:azureFunctions.pickProcess}"
+        }
+    ]
+}
