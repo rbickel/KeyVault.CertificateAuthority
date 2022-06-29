@@ -6,6 +6,7 @@
   <ItemGroup>
     <PackageReference Include="Azure.Core" Version="1.24.0" />
     <PackageReference Include="Azure.Identity" Version="1.6.0" />
+    <PackageReference Include="AzureExtensions.Swashbuckle" Version="3.3.2" />
     <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.EventGrid" Version="2.1.0" />
     <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="4.0.1" />
   </ItemGroup>
