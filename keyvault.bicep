@@ -1,7 +1,6 @@
 param location string
 param name string
-
-var latestRelease = 'https://github.com/rbickel/KeyVault.CertificateAuthority/releases/download/0.1.3/KeyVault.CertificateAuthority.0.1.3.zip'
+param functionsPackage string
 var storageAccountName = uniqueString(resourceGroup().id)
 
 resource keyvault 'Microsoft.KeyVault/vaults@2021-11-01-preview' = {
@@ -71,7 +70,7 @@ resource function 'Microsoft.Web/sites@2021-03-01' = {
         }
         {
           name: 'WEBSITE_RUN_FROM_PACKAGE '
-          value: latestRelease
+          value: functionsPackage
         }
         {
           name: 'DefaultKeyVaultUri '
@@ -84,7 +83,11 @@ resource function 'Microsoft.Web/sites@2021-03-01' = {
         {
           name: 'DefaultCertificateDuration'
           value: '365'
-        }        
+        }
+        {
+          name: 'DefaultCACertificateDuration'
+          value: '1460'
+        }           
       ]
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
