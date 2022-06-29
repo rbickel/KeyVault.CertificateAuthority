@@ -82,11 +82,11 @@ resource function 'Microsoft.Web/sites@2021-03-01' = {
         }
         {
           name: 'DefaultCertificateDuration'
-          value: '365'
+          value: '12'
         }
         {
           name: 'DefaultCACertificateDuration'
-          value: '1460'
+          value: '48'
         }           
       ]
       ftpsState: 'Disabled'

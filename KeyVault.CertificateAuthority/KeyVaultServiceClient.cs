@@ -41,169 +41,41 @@ namespace KeyVault.CertificateAuthority
             Credential = credential;
         }
 
-        internal async Task<X509Certificate2> CreateCertificateAsync(
+
+        internal async Task<KeyVaultCertificateWithPolicy> CreateCertificateWithDefaultAsync(
+                CertificateType type,
+                string issuerCertificateName,
+                string certificateName,
+                string subject,
+                string[] SAN)
+        {
+            int duration = type == CertificateType.Tls ? 12 : 48;
+            int certPathLength = type == CertificateType.Tls ? 0 : 5;
+            return await CreateCertificateAsync(
+                type,
+                issuerCertificateName,
+                certificateName,
+                subject,
+                SAN,
+                duration,
+                2048,
+                256,
+                certPathLength
+                );
+        }
+
+
+        internal async Task<KeyVaultCertificateWithPolicy> CreateCertificateAsync(
+                CertificateType type,
                 string issuerCertificateName,
                 string certificateName,
                 string subject,
                 string[] SAN,
-                DateTime notBefore,
-                DateTime notAfter,
+                int durationInMonths,
                 int keySize,
                 int hashSize,
                 int certPathLength,
-                bool caCert = false,
-                CancellationToken ct = default)
-        {
-            var san = new SubjectAlternativeNames();
-            foreach (var s in SAN)
-            {
-                san.DnsNames.Add(s);
-            }
-
-            if (caCert)
-            {
-                return await CreateCACertificateAsync(certificateName, subject, san, notBefore, notAfter, keySize, hashSize, certPathLength);
-            }
-            else
-            {
-                return await CreateCertificateAsync(issuerCertificateName, certificateName, subject, san, notBefore, notAfter, keySize, hashSize, certPathLength, caCert);
-            }
-        }
-
-        internal async Task<X509Certificate2> CreateCACertificateAsync(
-                string id,
-                string subject,
-                SubjectAlternativeNames SAN,
-                DateTime notBefore,
-                DateTime notAfter,
-                int keySize,
-                int hashSize,
-                int certPathLength,
-                CancellationToken ct = default)
-        {
-            try
-            {
-                // delete pending operations
-                _logger.LogDebug("Deleting pending operations for certificate id {id}.", id);
-                var op = await _certificateClient.GetCertificateOperationAsync(id);
-                await op.DeleteAsync();
-            }
-            catch
-            {
-                // intentionally ignore errors 
-            }
-
-            string caTempCertIdentifier = null;
-
-            try
-            {
-                // create policy for self signed certificate with a new key
-                var policySelfSignedNewKey = CreateCertificatePolicy(subject, SAN, keySize, true, false);
-
-                var newCertificateOperation = await _certificateClient.StartCreateCertificateAsync(id, policySelfSignedNewKey, true, null, ct).ConfigureAwait(false);
-                await newCertificateOperation.WaitForCompletionAsync(ct).ConfigureAwait(false);
-
-                if (!newCertificateOperation.HasCompleted)
-                {
-                    _logger.LogError("Failed to create new key pair.");
-                    throw new Exception("Failed to create new key pair.");
-                }
-
-                _logger.LogDebug("Creation of temporary self signed certificate with id {id} completed.", id);
-
-                var createdCertificateBundle = await _certificateClient.GetCertificateAsync(id).ConfigureAwait(false);
-                caTempCertIdentifier = createdCertificateBundle.Value.Id.ToString();
-
-                _logger.LogDebug("Temporary certificate identifier is {certIdentifier}.", caTempCertIdentifier);
-                _logger.LogDebug("Temporary certificate backing key identifier is {key}.", createdCertificateBundle.Value.KeyId);
-
-                // create policy for unknown issuer and reuse key
-                var policyUnknownReuse = CreateCertificatePolicy(subject, SAN, keySize, false, true);
-                var tags = CreateCertificateTags("self", id, true);
-
-                // create the CSR
-                _logger.LogDebug("Starting to create the CSR.");
-                var createResult = await _certificateClient.StartCreateCertificateAsync(id, policyUnknownReuse, true, tags, ct).ConfigureAwait(false);
-
-                if (createResult.Properties.Csr == null)
-                {
-                    throw new Exception("Failed to read CSR from CreateCertificate.");
-                }
-
-                // decode the CSR and verify consistency
-                _logger.LogDebug("Decode the CSR and verify consistency.");
-                var pkcs10CertificationRequest = new Org.BouncyCastle.Pkcs.Pkcs10CertificationRequest(createResult.Properties.Csr);
-                var info = pkcs10CertificationRequest.GetCertificationRequestInfo();
-                if (createResult.Properties.Csr == null ||
-                    pkcs10CertificationRequest == null ||
-                    !pkcs10CertificationRequest.Verify())
-                {
-                    _logger.LogError("Invalid CSR.");
-                    throw new Exception("Invalid CSR.");
-                }
-
-                // create the self signed root CA certificate
-                _logger.LogDebug("Create the self signed root CA certificate.");
-                var publicKey = KeyVaultCertFactory.GetRSAPublicKey(info.SubjectPublicKeyInfo);
-                var signedcert = await KeyVaultCertFactory.CreateSignedCertificate(
-                    subject,
-                    (ushort)keySize,
-                    notBefore,
-                    notAfter,
-                    (ushort)hashSize,
-                    null,
-                    publicKey,
-                    new KeyVaultSignatureGenerator(Credential, createdCertificateBundle.Value.KeyId, null),
-                    new string[0] { },
-                    true,
-                    certPathLength);
-
-                // merge Root CA cert with the signed certificate
-                _logger.LogDebug("Merge Root CA certificate with the signed certificate.");
-                MergeCertificateOptions options = new MergeCertificateOptions(id, new[] { signedcert.Export(X509ContentType.Pkcs12) });
-                var mergeResult = await _certificateClient.MergeCertificateAsync(options);
-
-                return signedcert;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("Failed to create new Root CA certificate: {ex}.", ex);
-                throw;
-            }
-            finally
-            {
-                if (caTempCertIdentifier != null)
-                {
-                    try
-                    {
-                        // disable the temp cert for self signing operation
-                        _logger.LogDebug("Disable the temporary certificate for self signing operation.");
-
-                        Response<KeyVaultCertificateWithPolicy> certificateResponse = _certificateClient.GetCertificate(caTempCertIdentifier);
-                        KeyVaultCertificateWithPolicy certificate = certificateResponse.Value;
-                        CertificateProperties certificateProperties = certificate.Properties;
-                        certificateProperties.Enabled = false;
-                        await _certificateClient.UpdateCertificatePropertiesAsync(certificateProperties);
-                    }
-                    catch
-                    {
-                        // intentionally ignore error
-                    }
-                }
-            }
-        }
-
-        internal async Task<X509Certificate2> CreateCertificateAsync(
-                string issuerCertificateName,
-                string certificateName,
-                string subject,
-                SubjectAlternativeNames san,
-                DateTime notBefore,
-                DateTime notAfter,
-                int keySize,
-                int hashSize,
-                int certPathLength,
-                bool caCert = false,
+                bool renew = false,
                 CancellationToken ct = default)
         {
             try
@@ -218,90 +90,83 @@ namespace KeyVault.CertificateAuthority
                 // intentionally ignore errors 
             }
 
-            string caTempCertIdentifier = null;
+            Uri signingCertificateKeyId = null;
+            X509Certificate2 signingCertificate = null;
 
-            try
+            //Retrieve existing signing certificate
+            if(type == CertificateType.Intermediate || type == CertificateType.Tls || renew)
             {
-                //retrieve issuerCertificateInfo
-                var signingCertiWithPolicy = await _certificateClient.GetCertificateAsync(issuerCertificateName);
-                var signingCert = new X509Certificate2(signingCertiWithPolicy.Value.Cer);
+                var signingCertificateRequest = await _certificateClient.GetCertificateAsync(issuerCertificateName);
+                signingCertificateKeyId = signingCertificateRequest.Value.KeyId;
+                signingCertificate = new X509Certificate2(signingCertificateRequest.Value.Cer);
+            }
+            else
+            {
+                //Initial Root CA certificate
+                //Create a new CSR self-signed to use as self-signing CA authority
+                var initialPolicy = CreateCertificatePolicy(subject, SAN, durationInMonths, keySize, true, true);
+                var selfSignedCsr = await _certificateClient.StartCreateCertificateAsync(certificateName, initialPolicy, true, null, ct).ConfigureAwait(false);
+                await selfSignedCsr.WaitForCompletionAsync();
 
-                // create policy for unknown issuer and reuse key
-                var policyUnknownReuse = CreateCertificatePolicy(subject, san, keySize, caCert, true, !caCert);
-                var tags = CreateCertificateTags(signingCertiWithPolicy.Value.KeyId.ToString(), issuerCertificateName, false);
-
-                // create the CSR
-                _logger.LogDebug("Starting to create the CSR.");
-                var createResult = await _certificateClient.StartCreateCertificateAsync(certificateName, policyUnknownReuse, true, tags, ct).ConfigureAwait(false);
-
-                if (createResult.Properties.Csr == null)
+                if (!selfSignedCsr.HasCompleted)
                 {
-                    throw new Exception("Failed to read CSR from CreateCertificate.");
+                    _logger.LogError("Failed to create new key pair.");
+                    throw new Exception("Failed to create new key pair.");
                 }
 
-                // decode the CSR and verify consistency
-                _logger.LogDebug("Decode the CSR and verify consistency.");
-                var pkcs10CertificationRequest = new Org.BouncyCastle.Pkcs.Pkcs10CertificationRequest(createResult.Properties.Csr);
-                var info = pkcs10CertificationRequest.GetCertificationRequestInfo();
-                if (createResult.Properties.Csr == null ||
-                    pkcs10CertificationRequest == null ||
-                    !pkcs10CertificationRequest.Verify())
-                {
-                    _logger.LogError("Invalid CSR.");
-                    throw new Exception("Invalid CSR.");
-                }
-
-                var publicKey = KeyVaultCertFactory.GetRSAPublicKey(info.SubjectPublicKeyInfo);
-
-                var dnsNames = san?.DnsNames ?? new List<string>();
-                // create the certificate
-                _logger.LogDebug("Create the certificate.");
-                var signedcert = await KeyVaultCertFactory.CreateSignedCertificate(
-                    subject,
-                    (ushort)keySize,
-                    notBefore,
-                    notAfter,
-                    (ushort)hashSize,
-                    signingCert,
-                    publicKey,
-                    new KeyVaultSignatureGenerator(Credential, signingCertiWithPolicy.Value.KeyId, signingCert),
-                    dnsNames,
-                    caCert
-                    );
-
-                // merge Root CA cert with the signed certificate
-                _logger.LogDebug("Merge Root CA certificate with the signed certificate.");
-                MergeCertificateOptions options = new MergeCertificateOptions(certificateName, new[] { signedcert.Export(X509ContentType.Pkcs12) });
-                var mergeResult = await _certificateClient.MergeCertificateAsync(options);
-
-                return new X509Certificate2(mergeResult.Value.Cer);
+                signingCertificateKeyId = selfSignedCsr.Value.KeyId;
+                signingCertificate = new X509Certificate2(selfSignedCsr.Value.Cer);
             }
-            catch (Exception ex)
+
+            //default CA certificate policy
+            var certificatePolicy = CreateCertificatePolicy(subject, SAN, durationInMonths, keySize, false, true);
+            switch (type)
             {
-                _logger.LogError("Failed to create new certificate: {ex}.", ex);
-                throw;
+                case CertificateType.Tls:
+                    certificatePolicy = CreateCertificatePolicy(subject, SAN, durationInMonths, keySize, false, false);
+                    break;
+                case CertificateType.Intermediate:
+                case CertificateType.CA:
+                    certificatePolicy = CreateCertificatePolicy(subject, SAN, durationInMonths, keySize, false, true);
+                    break;
             }
-            finally
-            {
-                if (caTempCertIdentifier != null)
-                {
-                    try
-                    {
-                        // disable the temp cert for self signing operation
-                        _logger.LogDebug("Disable the temporary certificate for self signing operation.");
 
-                        Response<KeyVaultCertificateWithPolicy> certificateResponse = _certificateClient.GetCertificate(caTempCertIdentifier);
-                        KeyVaultCertificateWithPolicy certificate = certificateResponse.Value;
-                        CertificateProperties certificateProperties = certificate.Properties;
-                        certificateProperties.Enabled = false;
-                        await _certificateClient.UpdateCertificatePropertiesAsync(certificateProperties);
-                    }
-                    catch
-                    {
-                        // intentionally ignore error
-                    }
-                }
+            //Initiate teh new certificate CSR
+            var tags = CreateCertificateTags(type, signingCertificateKeyId.ToString(), issuerCertificateName, true);
+            var newCertificateOperation = await _certificateClient.StartCreateCertificateAsync(certificateName, certificatePolicy, true, tags, ct).ConfigureAwait(false);
+
+            var createdCertificateBundle = await _certificateClient.GetCertificateAsync(certificateName);
+            var pkcs10CertificationRequest = new Org.BouncyCastle.Pkcs.Pkcs10CertificationRequest(newCertificateOperation.Properties.Csr);
+            var info = pkcs10CertificationRequest.GetCertificationRequestInfo();
+            if (newCertificateOperation.Properties.Csr == null ||
+                pkcs10CertificationRequest == null ||
+                !pkcs10CertificationRequest.Verify())
+            {
+                _logger.LogError("Invalid CSR.");
+                throw new Exception("Invalid CSR.");
             }
+
+            // create the self signed root CA certificate
+            _logger.LogDebug("Create and sign the certificate");
+            var publicKey = KeyVaultCertFactory.GetRSAPublicKey(info.SubjectPublicKeyInfo);
+            var signedcert = await KeyVaultCertFactory.CreateSignedCertificate(
+                type,
+                subject,
+                (ushort)keySize,
+                DateTime.Now.Date,
+                DateTime.Now.Date.AddMonths(durationInMonths),
+                (ushort)hashSize,
+                signingCertificate,
+                publicKey,
+                new KeyVaultSignatureGenerator(Credential, signingCertificateKeyId, signingCertificate),
+                SAN,
+                certPathLength);
+
+            _logger.LogDebug("Merge the signed certificate with the KeyVault certificate");
+            MergeCertificateOptions options = new MergeCertificateOptions(certificateName, new[] { signingCertificate.Export(X509ContentType.Pkcs12), signedcert.Export(X509ContentType.Pkcs12) });
+            var mergeResult = await _certificateClient.MergeCertificateAsync(options);
+
+            return mergeResult.Value;
         }
 
         /// <summary>
@@ -330,28 +195,36 @@ namespace KeyVault.CertificateAuthority
             return versions;
         }
 
-        private Dictionary<string, string> CreateCertificateTags(string id, string issuerName, bool trusted)
+        private Dictionary<string, string> CreateCertificateTags(CertificateType type, string id, string issuerName, bool trusted)
         {
             var tags = new Dictionary<string, string>();
             tags.Add("IssuerId", id);
             tags.Add("IssuerName", issuerName);
-            tags.Add("Trusted", trusted.ToString());
+            tags.Add("CertificateType", type.ToString());
             _logger.LogDebug("Created certificate tags for certificate with id {id} and trusted flag set to {trusted}.", id, trusted);
             return tags;
         }
 
         private CertificatePolicy CreateCertificatePolicy(
             string subject,
-            SubjectAlternativeNames san,
+            string[] san,
+            int duration,
             int keySize,
             bool selfSigned,
             bool reuseKey = false,
             bool exportable = false)
         {
+            SubjectAlternativeNames names = new SubjectAlternativeNames();
+            foreach (var s in san)
+            {
+                names.DnsNames.Add(s);
+            }
             var issuerName = selfSigned ? "Self" : "Unknown";
-            var policy = new CertificatePolicy(issuerName, subject)
+            
+            var policy = new CertificatePolicy(issuerName, subject, names)
             {
                 Exportable = exportable,
+                ValidityInMonths = duration,
                 KeySize = keySize,
                 KeyType = "RSA",
                 ReuseKey = reuseKey,

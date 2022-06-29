@@ -10,25 +10,34 @@ using Newtonsoft.Json;
 using KeyVault.CertificateAuthority;
 using Azure.Identity;
 using System.Text.RegularExpressions;
+using System.Net;
+using AzureFunctions.Extensions.Swashbuckle.Attribute;
+using AzureFunctions.Extensions.Swashbuckle;
+using Azure;
 
-namespace KeyVault.TlsAutoRenew
+namespace KeyVault.CertificateFunctions
 {
 
     public static class HttpNewCertificate
     {
-
         private static Regex _nameRegex = new Regex("^[a-zA-Z0-9-]+$");
         //very basic SAN validation
         private static Regex _subjectRegex = new Regex(@"^[a-zA-Z0-9-*\.]+$");
 
         [FunctionName("NewTlsCertificate")]
+        [ProducesResponseType(typeof(string), (int)HttpStatusCode.OK)]
+        [QueryStringParameter("name", "Name of the certificate", "mycertificate-local", Required = true)]
+        [QueryStringParameter("subject", "Subject", "mycertificate.local", Required = true)]
+        [QueryStringParameter("san", "Subject alternative names", "*.mycertificate.local", Required = false)]
+        [QueryStringParameter("issuer", "Issuer certificate name", "mycertificate-local", Required = false)]
+        [QueryStringParameter("ca", "Is the certificate a certificate authority ?", true, Required = false)]
         public static async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
             ILogger log)
         {
             string defaultKeyVaultUri = Environment.GetEnvironmentVariable("DefaultKeyVaultUri");
-            string defaultDurationDays = Environment.GetEnvironmentVariable("DefaultCertificateDuration");
-            string defaultCADurationDays = Environment.GetEnvironmentVariable("DefaultCACertificateDuration");
+            string defaultDurationMonths = Environment.GetEnvironmentVariable("DefaultCertificateDuration");
+            string defaultCADurationMonths = Environment.GetEnvironmentVariable("DefaultCACertificateDuration");
             string defaultCA = Environment.GetEnvironmentVariable("DefaultKeyCACertificate");
 
             log.LogInformation("C# HTTP trigger function processed a request.");
@@ -58,7 +67,7 @@ namespace KeyVault.TlsAutoRenew
                 {
                     StatusCode = 400
                 };
-            }            
+            }
 
             if (!_subjectRegex.Match(subject ?? string.Empty).Success)
             {
@@ -82,17 +91,36 @@ namespace KeyVault.TlsAutoRenew
             }
 
             var kvCertProvider = KeyVaultCertificateProvider.GetKeyVaultCertificateProvider(defaultKeyVaultUri, log);
+
+            var certificateType = CertificateType.Tls;
             if (ca)
             {
-                //generate CA certificate
-                await kvCertProvider.CreateCACertificateAsync(name, $"CN={subject}", int.Parse(defaultCADurationDays), san);
+                if (issuer == name || string.IsNullOrEmpty(issuer))
+                {
+                    certificateType = CertificateType.CA;
+                    issuer = name;
+                }
+                else
+                {
+                    certificateType = CertificateType.Intermediate;
+                }
             }
-            else
+
+            try
             {
-                await kvCertProvider.CreateCertificateAsync(issuer, name, $"CN={subject}", int.Parse(defaultDurationDays), san);
+                var cert = await kvCertProvider.CreateCertificateWithDefaultsAsync(certificateType, issuer, name, $"CN={subject}", san);
+                return new OkObjectResult(cert);
             }
-            
-            return new OkObjectResult(ca ? "CA Certificate generated successfully" : "Certificate generated successfully");
+            catch(Azure.RequestFailedException ex)
+            {
+                return new BadRequestObjectResult(ex);
+            }
+            catch (Exception ex)
+            {
+                return new ObjectResult(ex){
+                    StatusCode = 500
+                };
+            }
         }
     }
 }

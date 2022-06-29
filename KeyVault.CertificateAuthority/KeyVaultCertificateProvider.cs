@@ -21,6 +21,7 @@ namespace KeyVault.CertificateAuthority
         private readonly KeyVaultServiceClient _keyVaultServiceClient;
         private readonly ILogger _logger;
 
+        #region Get KeyVaultCertificateProvider instance
         public static KeyVaultCertificateProvider GetKeyVaultCertificateProvider(string keyVaultUrl)
         {
             var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions());
@@ -58,62 +59,94 @@ namespace KeyVault.CertificateAuthority
             _logger = logger;
         }
 
-        public async Task CreateCertificateAsync(string issuerCertificateName, string certificateName, string subject, int durationDays, string[] san)
+        #endregion
+
+        public async Task<KeyVaultCertificateWithPolicy> CreateCertificateWithDefaultsAsync(CertificateType certificateType, string issuerCertificateName, string certificateName, string subject, string[] san)
         {
+            int certPathLength = 0;
+            int durationInMonths = 12;
+            switch (certificateType)
+            {
+                case CertificateType.CA:
+                    durationInMonths = 48;
+                    certPathLength = 5;
+                    break;
+                case CertificateType.Intermediate:
+                    durationInMonths = 48;
+                    certPathLength = 3;
+                    break;
+            }
+
             var notBefore = DateTime.UtcNow.Date;
-            await _keyVaultServiceClient.CreateCertificateAsync(
+            return await _keyVaultServiceClient.CreateCertificateAsync(
+                    certificateType,
                     issuerCertificateName,
                     certificateName,
                     subject,
                     san,
-                    notBefore,
-                    DateTime.UtcNow.AddDays(durationDays),
+                    durationInMonths,
                     KeyVaultCertFactory.DefaultKeySize,
                     KeyVaultCertFactory.DefaultHashSize,
-                    0);
+                    certPathLength);
             _logger.LogInformation("A new certificate with issuer name {name} and path length {path} was created succsessfully.", issuerCertificateName, 0);
         }
 
-        public async Task CreateCACertificateAsync(string certificateName, string subject, int durationDays, string[] san, int certPathLength = 3)
+        public async Task<KeyVaultCertificateWithPolicy> CreateCertificateAsync(CertificateType type, string issuerCertificateName, string certificateName, string subject, int durationInMonths, string[] san, int certPathLength)
         {
-            var notBefore = DateTime.UtcNow.Date;
-            await _keyVaultServiceClient.CreateCertificateAsync(
-                    certificateName,
+            return await _keyVaultServiceClient.CreateCertificateAsync(
+                    type,
+                    issuerCertificateName,
                     certificateName,
                     subject,
                     san,
-                    notBefore,
-                    DateTime.UtcNow.AddDays(durationDays),
+                    durationInMonths,
                     KeyVaultCertFactory.DefaultKeySize,
                     KeyVaultCertFactory.DefaultHashSize,
-                    certPathLength,
-                    true               
-                    );
-            _logger.LogInformation("A new CA certificate with name {name} and path length {path} was created succsessfully.", certificateName, certPathLength);
+                    certPathLength);
+            _logger.LogInformation("A new certificate with issuer name {name} and path length {path} was created succsessfully.", issuerCertificateName, 0);
         }
 
-        public async Task RenewCertificateAsync(KeyVaultCertificateWithPolicy certWithPolicy, int duration)
+        public async Task<KeyVaultCertificateWithPolicy> RenewCertificateAsync(KeyVaultCertificateWithPolicy certWithPolicy)
         {
-            if (certWithPolicy.Properties.Tags.TryGetValue("IssuerName", out string issuerName))
+            if (certWithPolicy.Properties.Tags.TryGetValue("IssuerName", out string issuerName) && certWithPolicy.Properties.Tags.TryGetValue("CertificateType", out string type))
             {
-                int certPathLength = 1;
-                var notBefore = DateTime.UtcNow.Date;
-                await _keyVaultServiceClient.CreateCertificateAsync(
+                Enum.TryParse<CertificateType>(type, true, out CertificateType certificateType);
+
+                int certPathLength = 0;
+                int duration = 12;
+                switch (certificateType)
+                {
+                    case CertificateType.CA:
+                        duration = 48;
+                        certPathLength = 5;
+                        break;
+                    case CertificateType.Intermediate:
+                        duration = 48;
+                        certPathLength = 3;
+                        break;
+                }
+
+
+                var san = certWithPolicy.Policy.SubjectAlternativeNames.DnsNames.ToArray();
+                return await _keyVaultServiceClient.CreateCertificateAsync(
+                        certificateType,
                         issuerName,
                         certWithPolicy.Name,
                         certWithPolicy.Policy.Subject,
-                        certWithPolicy.Policy.SubjectAlternativeNames,
-                        notBefore,
-                        DateTime.UtcNow.AddDays(duration),
+                        san,
+                        duration,
                         KeyVaultCertFactory.DefaultKeySize,
                         KeyVaultCertFactory.DefaultHashSize,
-                        certPathLength);
+                        certPathLength,
+                        true);
 
-                        _logger.LogInformation("A new certificate with issuer name {name} and path length {path} was created succsessfully.", issuerName, certPathLength);
+                _logger.LogInformation("Certificate with issuer name {name} and path length {path} was created succsessfully.", issuerName, certPathLength);
             }
-            else{
+            else
+            {
                 _logger.LogWarning($"Tag 'IssuerName' with the issuing certificate is missing on certificate {certWithPolicy.Id}");
-            } 
+                return null;
+            }
         }
 
 

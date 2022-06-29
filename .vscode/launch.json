@@ -11,19 +11,7 @@
             "cwd": "${workspaceFolder}/KeyVault.CertificateAuthority",
             "console": "internalConsole",
             "stopAtEntry": false
-        },
-        {
-
-            "name": "CertificateFunctions func run",
-            "type": "func",
-            "request": "launch",
-            "preLaunchTask": "build",
-            "program": "${workspaceFolder}/KeyVault.CertificateFunctions/bin/Debug/net6.0/KeyVault.CertificateFunctions.dll",
-            "args": [],
-            "cwd": "${workspaceFolder}/KeyVault.CertificateFunctions",
-            "console": "internalConsole",
-            "stopAtEntry": false
-        },        
+        },    
         {
             "name": ".NET Core Attach",
             "type": "coreclr",
@@ -33,7 +21,9 @@
             "name": "Attach to .NET Functions",
             "type": "coreclr",
             "request": "attach",
-            "processId": "${command:azureFunctions.pickProcess}"
+            "processId": "${command:azureFunctions.pickProcess}",
+            "justMyCode": true
+
         }
     ]
 }

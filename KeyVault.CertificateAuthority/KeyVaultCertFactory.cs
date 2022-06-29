@@ -23,6 +23,7 @@ namespace KeyVault.CertificateAuthority
         /// </summary>
         /// <returns>The signed certificate</returns>
         public static Task<X509Certificate2> CreateSignedCertificate(
+            CertificateType certificateType,
             string subjectName,
             ushort keySize,
             DateTime notBefore,
@@ -32,9 +33,9 @@ namespace KeyVault.CertificateAuthority
             RSA publicKey,
             X509SignatureGenerator generator,
             IEnumerable<string> dnsNames,
-            bool caCert = false,
             int certPathLength = 0)
         {
+            bool caCert = certificateType == CertificateType.CA || certificateType == CertificateType.Intermediate;
             if (publicKey == null)
             {
                 throw new NotSupportedException("Need a public key and a CA certificate.");
@@ -54,10 +55,11 @@ namespace KeyVault.CertificateAuthority
             var request = new CertificateRequest(subjectDN, publicKey, GetRSAHashAlgorithmName(hashSizeInBits), RSASignaturePadding.Pkcs1);
 
             request.CertificateExtensions.Add(new X509BasicConstraintsExtension(caCert, caCert, certPathLength, true));
-            
+
             //Add SAN
             var sanBuilder = new SubjectAlternativeNameBuilder();
-            foreach(var dnsName in dnsNames){
+            foreach (var dnsName in dnsNames)
+            {
                 sanBuilder.AddDnsName(dnsName);
             }
             request.CertificateExtensions.Add(sanBuilder.Build());
@@ -70,41 +72,48 @@ namespace KeyVault.CertificateAuthority
 
             request.CertificateExtensions.Add(ski);
 
-            // Authority Key Identifier
-            if (issuerCAKeyCert != null)
+            //Build Key Identifier
+            switch (certificateType)
             {
-                request.CertificateExtensions.Add(BuildAuthorityKeyIdentifier(issuerCAKeyCert));
-            }
-            else
-            {
-                request.CertificateExtensions.Add(BuildAuthorityKeyIdentifier(subjectDN, serialNumber.Reverse().ToArray(), ski));
+                case CertificateType.Intermediate:
+                case CertificateType.Tls:
+                    request.CertificateExtensions.Add(BuildAuthorityKeyIdentifier(issuerCAKeyCert));
+                    break;
+                case CertificateType.CA:
+                    request.CertificateExtensions.Add(BuildAuthorityKeyIdentifier(subjectDN, serialNumber.Reverse().ToArray(), ski));
+                    break;
             }
 
-            if (caCert)
+            //Build usage
+            switch (certificateType)
             {
-                request.CertificateExtensions.Add(
-                    new X509KeyUsageExtension(
-                        X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.CrlSign,
-                        true));
-            }
-            else
-            {
-                // Key Usage
-                X509KeyUsageFlags defaultFlags =
-                    X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.DataEncipherment |
-                        X509KeyUsageFlags.NonRepudiation | X509KeyUsageFlags.KeyEncipherment;
+                case CertificateType.Intermediate:
+                case CertificateType.CA:
+                    request.CertificateExtensions.Add(
+                        new X509KeyUsageExtension(
+                            X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.CrlSign,
+                            true));
+                    break;
+                case CertificateType.Tls:
+                    // Key Usage
+                    X509KeyUsageFlags defaultFlags =
+                        X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.DataEncipherment |
+                            X509KeyUsageFlags.NonRepudiation | X509KeyUsageFlags.KeyEncipherment;
 
-                request.CertificateExtensions.Add(new X509KeyUsageExtension(defaultFlags, true));
+                    request.CertificateExtensions.Add(new X509KeyUsageExtension(defaultFlags, true));
 
-                // Enhanced key usage
-                request.CertificateExtensions.Add(
-                    new X509EnhancedKeyUsageExtension(
-                        new OidCollection {
+                    // Enhanced key usage
+                    request.CertificateExtensions.Add(
+                        new X509EnhancedKeyUsageExtension(
+                            new OidCollection {
                         new Oid("1.3.6.1.5.5.7.3.1"),
                         new Oid("1.3.6.1.5.5.7.3.2") }, true));
+
+                    break;
             }
 
-            if (issuerCAKeyCert != null)
+            //Ensure certificate is within CA validity
+            if (certificateType != CertificateType.CA)
             {
                 if (notAfter > issuerCAKeyCert.NotAfter)
                 {
@@ -116,7 +125,7 @@ namespace KeyVault.CertificateAuthority
                 }
             }
 
-            var issuerSubjectName = issuerCAKeyCert != null ? issuerCAKeyCert.SubjectName : subjectDN;
+            var issuerSubjectName = issuerCAKeyCert.SubjectName;
             X509Certificate2 signedCert = request.Create(
                 issuerSubjectName,
                 generator,

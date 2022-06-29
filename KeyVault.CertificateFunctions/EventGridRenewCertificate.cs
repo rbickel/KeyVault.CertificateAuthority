@@ -10,7 +10,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using KeyVault.CertificateAuthority;
 
-namespace KeyVault.TlsAutoRenew
+namespace KeyVault.CertificateFunctions
 {
     public static class EventGridRenewCertificate
     {
@@ -33,10 +33,8 @@ namespace KeyVault.TlsAutoRenew
             var certWithPolicy = await kvCertProvider2.GetCertificatePolicyAsync(certificateName);
             //var existingCert = new X509Certificate2(policy.Cer);
             
-            var issuer = certWithPolicy.Properties.Tags["IssuerName"];
-
-            await kvCertProvider2.RenewCertificateAsync(certWithPolicy, int.Parse(defaultDurationDays));
-            log.LogInformation($"Certificate {certWithPolicy.Name} renewed by {issuer} for {defaultDurationDays} days");
+            var result = await kvCertProvider2.RenewCertificateAsync(certWithPolicy);
+            log.LogInformation($"Certificate {result.Name} renewed by {result.Properties.Tags["IssuerName"]} for {result.Policy.ValidityInMonths} months");
         }
     }
 }
