@@ -94,7 +94,7 @@ namespace KeyVault.CertificateAuthority
             X509Certificate2 signingCertificate = null;
 
             //Retrieve existing signing certificate
-            if(type == CertificateType.Intermediate || type == CertificateType.Tls || renew)
+            if (type == CertificateType.Intermediate || type == CertificateType.Tls || renew)
             {
                 var signingCertificateRequest = await _certificateClient.GetCertificateAsync(issuerCertificateName);
                 signingCertificateKeyId = signingCertificateRequest.Value.KeyId;
@@ -163,7 +163,9 @@ namespace KeyVault.CertificateAuthority
                 certPathLength);
 
             _logger.LogDebug("Merge the signed certificate with the KeyVault certificate");
-            MergeCertificateOptions options = new MergeCertificateOptions(certificateName, new[] { signingCertificate.Export(X509ContentType.Pkcs12), signedcert.Export(X509ContentType.Pkcs12) });
+            MergeCertificateOptions options = type == CertificateType.CA ? 
+                new MergeCertificateOptions(certificateName, new[] { signedcert.Export(X509ContentType.Pkcs12) }) :
+                new MergeCertificateOptions(certificateName, new[] { signedcert.Export(X509ContentType.Pkcs12), signingCertificate.Export(X509ContentType.Pkcs12) });
             var mergeResult = await _certificateClient.MergeCertificateAsync(options);
 
             return mergeResult.Value;
@@ -214,14 +216,8 @@ namespace KeyVault.CertificateAuthority
             bool reuseKey = false,
             bool exportable = false)
         {
-            SubjectAlternativeNames names = new SubjectAlternativeNames();
-            foreach (var s in san)
-            {
-                names.DnsNames.Add(s);
-            }
             var issuerName = selfSigned ? "Self" : "Unknown";
-            
-            var policy = new CertificatePolicy(issuerName, subject, names)
+            var policy = new CertificatePolicy(issuerName, subject)
             {
                 Exportable = exportable,
                 ValidityInMonths = duration,
@@ -230,6 +226,26 @@ namespace KeyVault.CertificateAuthority
                 ReuseKey = reuseKey,
                 ContentType = CertificateContentType.Pkcs12
             };
+
+
+            if (san.Length > 0)
+            {
+                SubjectAlternativeNames names = new SubjectAlternativeNames();
+                foreach (var s in san)
+                {
+                    names.DnsNames.Add(s);
+                }
+
+                policy = new CertificatePolicy(issuerName, subject, names)
+                {
+                    Exportable = exportable,
+                    ValidityInMonths = duration,
+                    KeySize = keySize,
+                    KeyType = "RSA",
+                    ReuseKey = reuseKey,
+                    ContentType = CertificateContentType.Pkcs12
+                };
+            }
 
             _logger.LogDebug("Created certificate policy for certificate with issuer name {issuerName}, self signed {selfSigned} and reused key {reuseKey}.", issuerName, selfSigned, reuseKey);
             return policy;

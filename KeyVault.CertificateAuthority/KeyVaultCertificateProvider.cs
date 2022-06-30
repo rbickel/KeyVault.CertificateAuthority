@@ -127,7 +127,7 @@ namespace KeyVault.CertificateAuthority
                 }
 
 
-                var san = certWithPolicy.Policy.SubjectAlternativeNames.DnsNames.ToArray();
+                var san = certWithPolicy.Policy.SubjectAlternativeNames?.DnsNames.ToArray() ?? new string[]{};
                 return await _keyVaultServiceClient.CreateCertificateAsync(
                         certificateType,
                         issuerName,
