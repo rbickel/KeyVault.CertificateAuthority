@@ -28,7 +28,7 @@ New-AzResourceGroup -Name $RG -Location $LOCATION
 $params = @{ 
     name = $CA
     location = $LOCATION
-    functionsPackage = 'https://github.com/rbickel/KeyVault.CertificateAuthority/releases/download/0.2.0/KeyVault.CertificateAuthority.0.2.0.zip'
+    functionsPackage = 'https://github.com/rbickel/KeyVault.CertificateAuthority/releases/download/1.0.0/KeyVault.CertificateAuthority.1.0.0.zip'
 }
 $deployment = New-AzResourceGroupDeployment -ResourceGroupName $RG -TemplateFile .\keyvault.bicep -TemplateParameterObject $params
 ```
