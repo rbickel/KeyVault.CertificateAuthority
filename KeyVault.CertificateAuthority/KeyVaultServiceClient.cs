@@ -123,7 +123,7 @@ namespace KeyVault.CertificateAuthority
             switch (type)
             {
                 case CertificateType.Tls:
-                    certificatePolicy = CreateCertificatePolicy(subject, SAN, durationInMonths, keySize, false, false);
+                    certificatePolicy = CreateCertificatePolicy(subject, SAN, durationInMonths, keySize, false, false, true);
                     break;
                 case CertificateType.Intermediate:
                 case CertificateType.CA:
