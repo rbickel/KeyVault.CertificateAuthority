@@ -4,7 +4,6 @@ using Microsoft.Extensions.Configuration;
 
 public class Config
 {
-
     private static Config _instance;
     private IConfiguration _configuration;
     private static object _lock = new object();
