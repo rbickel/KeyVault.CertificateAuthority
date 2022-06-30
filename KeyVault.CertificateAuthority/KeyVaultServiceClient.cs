@@ -163,9 +163,7 @@ namespace KeyVault.CertificateAuthority
                 certPathLength);
 
             _logger.LogDebug("Merge the signed certificate with the KeyVault certificate");
-            MergeCertificateOptions options = type == CertificateType.CA ? 
-                new MergeCertificateOptions(certificateName, new[] { signedcert.Export(X509ContentType.Pkcs12) }) :
-                new MergeCertificateOptions(certificateName, new[] { signedcert.Export(X509ContentType.Pkcs12), signingCertificate.Export(X509ContentType.Pkcs12) });
+            MergeCertificateOptions options = new MergeCertificateOptions(certificateName, new[] { signedcert.Export(X509ContentType.Pkcs12) });
             var mergeResult = await _certificateClient.MergeCertificateAsync(options);
 
             return mergeResult.Value;
