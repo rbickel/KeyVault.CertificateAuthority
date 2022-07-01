@@ -28,7 +28,7 @@ New-AzResourceGroup -Name $RG -Location $LOCATION
 $params = @{ 
     name = $CA
     location = $LOCATION
-    functionsPackage = 'https://github.com/rbickel/KeyVault.CertificateAuthority/releases/download/1.0.0/KeyVault.CertificateAuthority.1.0.0.zip'
+    functionsPackage = 'https://github.com/rbickel/KeyVault.CertificateAuthority/releases/download/1.1.0/KeyVault.CertificateAuthority.1.1.0.zip'
 }
 $deployment = New-AzResourceGroupDeployment -ResourceGroupName $RG -TemplateFile .\keyvault.bicep -TemplateParameterObject $params
 ```
@@ -43,7 +43,7 @@ $CASubject="myca.local"
 $uri = "https://$CA-func.azurewebsites.net/api/NewTlsCertificate?code=$code&name=$CAName&subject=$CASubject&san=$CASubject&ca=true"
 
 #Calls the Azure function to generate the CA certificate
-Invoke-WebRequest -Uri $uri
+Invoke-WebRequest -Uri $uri -Method POST
 
 # Generate a test certificate
 $certname = "mysite-local"
@@ -52,8 +52,20 @@ $san2 = "*.mysite.local"
 $uri = "https://$CA-func.azurewebsites.net/api/NewTlsCertificate?code=$code&name=$certname&issuer=$CAName&subject=$san1&san=$san1&san=$san2"
 
 #Calls the Azure function to generate the TLS certificate signed by our CA
-Invoke-WebRequest -Uri $uri
-#Your certificate should be created in Azure KeyVault if everything went through :)
+Invoke-WebRequest -Uri $uri -Method POST
+```
+
+### Generate a CA and a a signed certificate in Swagger
+
+Swagger is deployed with the Azure functions, offering a Web interface to generate certificates.
+
+```powershell
+# powershell snippet
+# open Swagger UI in chrome
+
+$uri = "https://$CA-func.azurewebsites.net/api/swagger/ui
+
+chrome.exe $uri
 ```
 
 ## Limitations and issues

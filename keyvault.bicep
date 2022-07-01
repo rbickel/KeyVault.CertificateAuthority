@@ -115,7 +115,7 @@ resource eventGridTopicSubscription 'Microsoft.EventGrid/systemTopics/eventSubsc
       properties: {
         maxEventsPerBatch: 1
         preferredBatchSizeInKilobytes: 64
-        resourceId: '${function.id}/functions/RenewTlsCertificate'
+        resourceId: '${function.id}/functions/EventRenewCertificate'
       }
     }
     filter:{

@@ -14,9 +14,8 @@ namespace KeyVault.CertificateFunctions
 {
     public static class EventGridRenewCertificate
     {
-
-        [FunctionName("RenewTlsCertificate")]
-        public static async Task Run([EventGridTrigger] EventGridEvent eventGridEvent, ILogger log)
+        [FunctionName(nameof(EventRenewCertificate))]
+        public static async Task EventRenewCertificate([EventGridTrigger] EventGridEvent eventGridEvent, ILogger log)
         {
             string defaultKeyVaultUri= Environment.GetEnvironmentVariable("DefaultKeyVaultUri");
             string defaultDurationDays = Environment.GetEnvironmentVariable("DefaultCertificateDuration");

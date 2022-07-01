@@ -9,10 +9,12 @@ using Azure.Security.KeyVault.Certificates;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 
+[assembly: InternalsVisibleToAttribute("KeyVault.CertificateTests")]
 namespace KeyVault.CertificateAuthority
 {
     /// <summary>
@@ -28,19 +30,19 @@ namespace KeyVault.CertificateAuthority
         /// Create the certificate client for managing certificates in Key Vault, using developer authentication locally or managed identity in the cloud.
         /// </summary>
         public KeyVaultServiceClient(string KeyVaultUrl, DefaultAzureCredential credential, ILoggerFactory loggerFactory)
+            : this(KeyVaultUrl, credential, loggerFactory.CreateLogger(nameof(KeyVaultServiceClient)))
         {
-            _certificateClient = new CertificateClient(new Uri(KeyVaultUrl), credential);
-            _logger = loggerFactory.CreateLogger(nameof(KeyVaultServiceClient));
-            Credential = credential;
+        }
+        public KeyVaultServiceClient(string KeyVaultUrl, DefaultAzureCredential credential, ILogger logger) 
+            : this(new CertificateClient(new Uri(KeyVaultUrl), credential), credential, logger)
+        {
         }
 
-        public KeyVaultServiceClient(string KeyVaultUrl, DefaultAzureCredential credential, ILogger logger)
-        {
-            _certificateClient = new CertificateClient(new Uri(KeyVaultUrl), credential);
+        public KeyVaultServiceClient(CertificateClient client, DefaultAzureCredential credential, ILogger logger){
+            _certificateClient = client;
             _logger = logger;
             Credential = credential;
         }
-
 
         internal async Task<KeyVaultCertificateWithPolicy> CreateCertificateWithDefaultAsync(
                 CertificateType type,

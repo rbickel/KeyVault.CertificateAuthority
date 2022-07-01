@@ -14,6 +14,7 @@ using System.Net;
 using AzureFunctions.Extensions.Swashbuckle.Attribute;
 using AzureFunctions.Extensions.Swashbuckle;
 using Azure;
+using Azure.Security.KeyVault.Certificates;
 
 namespace KeyVault.CertificateFunctions
 {
@@ -24,15 +25,62 @@ namespace KeyVault.CertificateFunctions
         //very basic SAN validation
         private static Regex _subjectRegex = new Regex(@"^[a-zA-Z0-9-*\.]+$");
 
-        [FunctionName("NewTlsCertificate")]
-        [ProducesResponseType(typeof(string), (int)HttpStatusCode.OK)]
-        [QueryStringParameter("name", "Name of the certificate", "mycertificate-local", Required = true)]
-        [QueryStringParameter("subject", "Subject", "mycertificate.local", Required = true)]
+        [FunctionName(nameof(RenewTlsCertificate))]
+        [ProducesResponseType(typeof(KeyVaultCertificateWithPolicy), (int)HttpStatusCode.OK)]
+        [QueryStringParameter("name", "Name of the KeyVault certificate to renew ([a-zA-Z0-9-]) ", "mycertificate-local", Required = true)]
+        public static async Task<IActionResult> RenewTlsCertificate(
+                    [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
+                    ILogger log)
+        {
+            string defaultKeyVaultUri = Environment.GetEnvironmentVariable("DefaultKeyVaultUri");
+            string defaultDurationMonths = Environment.GetEnvironmentVariable("DefaultCertificateDuration");
+            string defaultCADurationMonths = Environment.GetEnvironmentVariable("DefaultCACertificateDuration");
+            string defaultCA = Environment.GetEnvironmentVariable("DefaultKeyCACertificate");
+
+            log.LogInformation("C# HTTP trigger function processed a request.");
+
+            string name = req.Query["name"];
+
+            //parameters validation
+            if (!_nameRegex.Match(name ?? string.Empty).Success)
+            {
+                // does not match
+                return new ObjectResult($"Invalid certificate name provided. Must match {_nameRegex}")
+                {
+                    StatusCode = 400
+                };
+            }
+
+
+            try
+            {
+                var kvCertProvider = KeyVaultCertificateProvider.GetKeyVaultCertificateProvider(defaultKeyVaultUri, log);
+                var existingCertificate = await kvCertProvider.GetCertificatePolicyAsync(name);
+                var renewedCertificate = await kvCertProvider.RenewCertificateAsync(existingCertificate);
+                return new OkObjectResult(renewedCertificate);
+            }
+            catch (Azure.RequestFailedException ex)
+            {
+                return new BadRequestObjectResult(ex);
+            }
+            catch (Exception ex)
+            {
+                return new ObjectResult(ex)
+                {
+                    StatusCode = 500
+                };
+            }
+        }
+
+        [FunctionName(nameof(NewTlsCertificate))]
+        [ProducesResponseType(typeof(KeyVaultCertificateWithPolicy), (int)HttpStatusCode.OK)]
+        [QueryStringParameter("name", "Name of the KeyVault certificate ([a-zA-Z0-9-])", "mycertificate-local", Required = true)]
+        [QueryStringParameter("subject", "Subject (fqdn or name)", "mycertificate.local", Required = true)]
         [QueryStringParameter("san", "Subject alternative names", "*.mycertificate.local", Required = false)]
-        [QueryStringParameter("issuer", "Issuer certificate name", "mycertificate-local", Required = false)]
-        [QueryStringParameter("ca", "Is the certificate a certificate authority ?", true, Required = false)]
-        public static async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
+        [QueryStringParameter("issuer", "Name of the KeyVault issuing certificate ([a-zA-Z0-9-])", "mycertificate-local", Required = false)]
+        [QueryStringParameter("ca", "Is the certificate a certificate authority (root, intermediate) ?", false, Required = false)]
+        public static async Task<IActionResult> NewTlsCertificate(
+            [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
             ILogger log)
         {
             string defaultKeyVaultUri = Environment.GetEnvironmentVariable("DefaultKeyVaultUri");
@@ -111,13 +159,14 @@ namespace KeyVault.CertificateFunctions
                 var cert = await kvCertProvider.CreateCertificateWithDefaultsAsync(certificateType, issuer, name, $"CN={subject}", san);
                 return new OkObjectResult(cert);
             }
-            catch(Azure.RequestFailedException ex)
+            catch (Azure.RequestFailedException ex)
             {
                 return new BadRequestObjectResult(ex);
             }
             catch (Exception ex)
             {
-                return new ObjectResult(ex){
+                return new ObjectResult(ex)
+                {
                     StatusCode = 500
                 };
             }

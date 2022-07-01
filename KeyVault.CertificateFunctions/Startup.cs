@@ -21,7 +21,7 @@ namespace KeyVault.CertificateFunctions
                     new SwaggerDocument {
                         Name = "v1",
                             Title = "Swagger document",
-                            Description = "Integrate Swagger UI With Azure Functions",
+                            Description = "Serverless KeyVault certificate functions",
                             Version = "v2"
                     }
                 };

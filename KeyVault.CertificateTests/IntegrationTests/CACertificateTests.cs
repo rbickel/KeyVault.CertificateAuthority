@@ -35,7 +35,7 @@ public class CACertificateTests
     [Fact(DisplayName = "Renewed CA certificate must have same private keys")]
     public async Task CACertificates_RenewSameKey_ReturnTrue()
     {
-        var initialCert = await _kvCertProvider.CreateCertificateWithDefaultsAsync(CertificateType.CA, "test-ca3", "test-ca3", "CN=test-ca3", new string[] { });
+        var initialCert = await _kvCertProvider.CreateCertificateWithDefaultsAsync(CertificateType.CA, "test-ca4", "test-ca4", "CN=test-ca4", new string[] { });
         var renewedCert = await _kvCertProvider.RenewCertificateAsync(initialCert);
 
 
@@ -48,4 +48,21 @@ public class CACertificateTests
 
         Assert.Equal(Convert.ToString(encrypted1), Convert.ToString(encrypted2));
     }
+    [Fact(DisplayName = "Renewed CA certificate must have same private keys")]
+    public async Task CACertificates_RenewSameKey_ReturnTrue2()
+    {
+        var initialCert = await _kvCertProvider.GetCertificatePolicyAsync("ca-rbkl-com");
+        var renewedCert = await _kvCertProvider.RenewCertificateAsync(initialCert);
+
+
+        var data = Encoding.ASCII.GetBytes("Hello I'd like to sign this");
+        //Sign something with first key and second key
+        KeyVaultSignatureGenerator signing = new KeyVaultSignatureGenerator(new DefaultAzureCredential(), initialCert.KeyId, new X509Certificate2(initialCert.Cer));
+        var encrypted1 = signing.SignData(data, HashAlgorithmName.SHA256);
+        signing = new KeyVaultSignatureGenerator(new DefaultAzureCredential(), renewedCert.KeyId, new X509Certificate2(renewedCert.Cer));
+        var encrypted2 = signing.SignData(data, HashAlgorithmName.SHA256);
+
+        Assert.Equal(Convert.ToString(encrypted1), Convert.ToString(encrypted2));
+    }
+    
 }
