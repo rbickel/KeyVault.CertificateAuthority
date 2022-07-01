@@ -11,6 +11,7 @@ namespace KeyVault.CertificateAuthority
         Task<KeyVaultCertificateWithPolicy> CreateCertificateWithDefaultsAsync(CertificateType certificateType, string issuerCertificateName, string certificateName, string subject, string[] san);
         Task<KeyVaultCertificateWithPolicy> CreateCertificateAsync(CertificateType certificateType, string issuerCertificateName, string certificateName, string subject, int durationInMonths, string[] san, int certPathLength);
         Task<KeyVaultCertificateWithPolicy> RenewCertificateAsync(KeyVaultCertificateWithPolicy certWithPolicy);
+        Task<IList<CertificateProperties>> GetCertificatesAsync();
         Task<IList<X509Certificate2>> GetPublicCertificatesByName(IEnumerable<string> certNames);
         Task<X509Certificate2> GetCertificateAsync(string issuerCertificateName);
 

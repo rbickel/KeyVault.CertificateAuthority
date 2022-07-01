@@ -61,6 +61,21 @@ namespace KeyVault.CertificateAuthority
 
         #endregion
 
+        public async Task<IList<CertificateProperties>> GetCertificatesAsync()
+        {
+            var certs = await _keyVaultServiceClient.GetCertificatesAsync();
+            var result = new List<CertificateProperties>();
+            await foreach (var page in certs.AsPages())
+            {
+                foreach (var cert in page.Values)
+                {
+                    _logger.LogInformation($"Certificate: {cert.Name}");
+                    result.Add(cert);
+                }
+            }
+            return result;
+        }
+
         public async Task<KeyVaultCertificateWithPolicy> CreateCertificateWithDefaultsAsync(CertificateType certificateType, string issuerCertificateName, string certificateName, string subject, string[] san)
         {
             int certPathLength = 0;
@@ -127,7 +142,7 @@ namespace KeyVault.CertificateAuthority
                 }
 
 
-                var san = certWithPolicy.Policy.SubjectAlternativeNames?.DnsNames.ToArray() ?? new string[]{};
+                var san = certWithPolicy.Policy.SubjectAlternativeNames?.DnsNames.ToArray() ?? new string[] { };
                 return await _keyVaultServiceClient.CreateCertificateAsync(
                         certificateType,
                         issuerName,

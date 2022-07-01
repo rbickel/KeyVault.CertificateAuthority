@@ -6,7 +6,7 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
+
 using KeyVault.CertificateAuthority;
 using Azure.Identity;
 using System.Text.RegularExpressions;
@@ -15,6 +15,11 @@ using AzureFunctions.Extensions.Swashbuckle.Attribute;
 using AzureFunctions.Extensions.Swashbuckle;
 using Azure;
 using Azure.Security.KeyVault.Certificates;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using Newtonsoft.Json;
+
 
 namespace KeyVault.CertificateFunctions
 {
@@ -24,6 +29,50 @@ namespace KeyVault.CertificateFunctions
         private static Regex _nameRegex = new Regex("^[a-zA-Z0-9-]+$");
         //very basic SAN validation
         private static Regex _subjectRegex = new Regex(@"^[a-zA-Z0-9-*\.]+$");
+
+
+        [FunctionName(nameof(GetKeyVaultCertificates))]
+        [ProducesResponseType(typeof(CertificateModel[]), (int)HttpStatusCode.OK)]
+        public static async Task<IActionResult> GetKeyVaultCertificates(
+                    [HttpTrigger(AuthorizationLevel.Function, "get", Route = null)] HttpRequest req,
+                    ILogger log)
+        {
+            string defaultKeyVaultUri = Environment.GetEnvironmentVariable("DefaultKeyVaultUri");
+            try
+            {
+                var kvCertProvider = KeyVaultCertificateProvider.GetKeyVaultCertificateProvider(defaultKeyVaultUri, log);
+                var certificates = await kvCertProvider.GetCertificatesAsync();
+
+                var dictionary = new Dictionary<string, CertificateModel>();
+                foreach (var cert in certificates)
+                {
+                    dictionary.Add(cert.Name, new CertificateModel(cert));
+                }
+                foreach (var keypair in dictionary)
+                {
+                    var item = keypair.Value;
+                    if (!string.IsNullOrEmpty(item.Issuer) && !string.Equals(item.Name, item.Issuer) && dictionary.ContainsKey(item.Issuer))
+                    {
+                        dictionary[item.Issuer].Certificates.Add(item);
+                    }
+                }
+
+                var result = dictionary.Where(c => string.Equals(c.Value.Issuer, c.Value.Name)).ToDictionary(c => c.Key, c => c.Value);
+                return new OkObjectResult(result);
+            }
+            catch (Azure.RequestFailedException ex)
+            {
+                return new BadRequestObjectResult(ex);
+            }
+            catch (Exception ex)
+            {
+                return new ObjectResult(ex)
+                {
+                    StatusCode = 500
+                };
+            }
+        }
+
 
         [FunctionName(nameof(RenewTlsCertificate))]
         [ProducesResponseType(typeof(KeyVaultCertificateWithPolicy), (int)HttpStatusCode.OK)]
@@ -171,5 +220,28 @@ namespace KeyVault.CertificateFunctions
                 };
             }
         }
+
+
     }
+    public class CertificateModel
+    {
+        public CertificateModel(CertificateProperties cert)
+        {
+            this.Name = cert.Name;
+            if (cert.Tags.ContainsKey("IssuerName"))
+            {
+                this.Issuer = cert.Tags["IssuerName"];
+            }
+            this.Tags = cert.Tags;
+        }
+        [JsonProperty(Order = 1)] 
+        public string Name { get; set; }
+        [JsonProperty(Order = 2)] 
+        public string Issuer { get; set; }
+        [JsonProperty(Order = 3)] 
+        public IDictionary<string, string> Tags { get; set; }        
+        [JsonProperty(Order = 4)] 
+        public List<CertificateModel> Certificates = new List<CertificateModel>();
+    }
+
 }

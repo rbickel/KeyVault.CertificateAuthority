@@ -33,12 +33,13 @@ namespace KeyVault.CertificateAuthority
             : this(KeyVaultUrl, credential, loggerFactory.CreateLogger(nameof(KeyVaultServiceClient)))
         {
         }
-        public KeyVaultServiceClient(string KeyVaultUrl, DefaultAzureCredential credential, ILogger logger) 
+        public KeyVaultServiceClient(string KeyVaultUrl, DefaultAzureCredential credential, ILogger logger)
             : this(new CertificateClient(new Uri(KeyVaultUrl), credential), credential, logger)
         {
         }
 
-        public KeyVaultServiceClient(CertificateClient client, DefaultAzureCredential credential, ILogger logger){
+        public KeyVaultServiceClient(CertificateClient client, DefaultAzureCredential credential, ILogger logger)
+        {
             _certificateClient = client;
             _logger = logger;
             Credential = credential;
@@ -177,6 +178,11 @@ namespace KeyVault.CertificateAuthority
         internal async Task<Response<KeyVaultCertificateWithPolicy>> GetCertificateAsync(string certName, CancellationToken ct = default)
         {
             return await _certificateClient.GetCertificateAsync(certName, ct).ConfigureAwait(false);
+        }
+
+        internal async Task<AsyncPageable<CertificateProperties>> GetCertificatesAsync(CancellationToken ct = default)
+        {
+            return _certificateClient.GetPropertiesOfCertificatesAsync();
         }
 
         internal async Task<Response<KeyVaultCertificateWithPolicy>> MergeSignedRequestCertificate(string certificateName, IEnumerable<byte[]> x509Certificates)
